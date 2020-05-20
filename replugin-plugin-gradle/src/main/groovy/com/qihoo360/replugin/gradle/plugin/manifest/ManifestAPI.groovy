@@ -17,8 +17,11 @@
 
 package com.qihoo360.replugin.gradle.plugin.manifest
 
+import com.sun.istack.Nullable
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Provider
 
 import java.util.regex.Pattern
 
@@ -57,16 +60,19 @@ public class ManifestAPI {
         if (processManifestTask) {
             File result = null
             //正常的manifest
-            File manifestOutputFile = null
+            File manifestOutputFile = getAndroidManifestFile(tryInvoke(processManifestTask, [
+                    "getManifestOutputFile",
+                    //>agp 3.4
+                    "getManifestOutputDirectory"
+            ]))
             //instant run的manifest
-            File instantRunManifestOutputFile = null
-            try {
-                manifestOutputFile = processManifestTask.getManifestOutputFile()
-                instantRunManifestOutputFile = processManifestTask.getInstantRunManifestOutputFile()
-            } catch (Exception e) {
-                manifestOutputFile = new File(processManifestTask.getManifestOutputDirectory(), "AndroidManifest.xml")
-                instantRunManifestOutputFile = new File(processManifestTask.getInstantRunManifestOutputDirectory(), "AndroidManifest.xml")
-            }
+            File instantRunManifestOutputFile = getAndroidManifestFile(tryInvoke(processManifestTask, [
+                    "getInstantRunManifestOutputFile",
+                    //> agp 3.4
+                    "getInstantRunManifestOutputDirectory",
+                    //> agp 3.6
+                    "getInstantAppManifestOutputDirectory"
+            ]))
 
             if (manifestOutputFile == null && instantRunManifestOutputFile == null) {
                 throw new GradleException("can't get manifest file")
@@ -107,5 +113,46 @@ public class ManifestAPI {
         }
 
         return ""
+    }
+
+    /**
+     * 尝试调用函数，方法列表中逐一尝试，调用成功则返回调用结果
+     * @param invoker 调用方对象
+     * @param methods 方法名列表
+     * @return 调用结果
+     */
+    @Nullable
+    private static Object tryInvoke(Object invoker, List<String> methods) {
+        return methods.collect {
+            try {
+                invoker."${it}"()
+            } catch (Exception ignored) {
+                null
+            }
+        }.find { it != null }
+    }
+
+    /**
+     * 获取AndroidManifest文件
+     * @param obj 文件/目录
+     * @return File
+     */
+    @Nullable
+    private static File getAndroidManifestFile(Object obj) {
+        if (obj == null) {
+            return null
+        }
+        File dirFile = null
+        if (obj in File) {
+            if (obj.isFile()) {
+                return obj
+            }
+            dirFile = obj
+        } else if (obj in Provider) {
+            dirFile = obj.getOrNull().asFile
+        } else if (obj in DirectoryProperty) {
+            dirFile = obj.asFile.getOrNull()
+        }
+        return new File(dirFile, "AndroidManifest.xml")
     }
 }
