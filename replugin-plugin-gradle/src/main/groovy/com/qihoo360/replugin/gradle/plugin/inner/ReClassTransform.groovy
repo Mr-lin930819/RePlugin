@@ -46,6 +46,8 @@ public class ReClassTransform extends Transform {
         this.project = p
         // taskManager 在 2.1.3 中为 protected 访问类型的，在之后的版本为 private 访问类型的，
         // 使用反射访问
+        //com.android.tools.build:gradle 3.6.3 AppPlugin发生变化（使用kotlin并且内部属性只有project，之前
+        // 版本（包含taskManager）的AppPlugin被移到com.android.build.gradle.internal.plugins.AppPlugin）
         def pluginWithTaskManager = [AppPlugin, com.android.build.gradle.internal.plugins.AppPlugin]
                 .collect { project.plugins.getPlugin(it) }
                 .find { it.metaClass.hasProperty(it, "taskManager") }

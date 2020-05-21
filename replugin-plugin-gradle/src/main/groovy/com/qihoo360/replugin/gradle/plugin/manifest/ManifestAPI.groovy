@@ -60,17 +60,17 @@ public class ManifestAPI {
         if (processManifestTask) {
             File result = null
             //正常的manifest
-            File manifestOutputFile = getAndroidManifestFile(tryInvoke(processManifestTask, [
+            File manifestOutputFile = getAndroidManifestFile(compatInvoke(processManifestTask, [
                     "getManifestOutputFile",
-                    //>agp 3.4
+                    //> com.android.tools.build:gradle 3
                     "getManifestOutputDirectory"
             ]))
             //instant run的manifest
-            File instantRunManifestOutputFile = getAndroidManifestFile(tryInvoke(processManifestTask, [
+            File instantRunManifestOutputFile = getAndroidManifestFile(compatInvoke(processManifestTask, [
                     "getInstantRunManifestOutputFile",
-                    //> agp 3.4
+                    //> com.android.tools.build:gradle 3
                     "getInstantRunManifestOutputDirectory",
-                    //> agp 3.6
+                    //> com.android.tools.build:gradle 3.6
                     "getInstantAppManifestOutputDirectory"
             ]))
 
@@ -116,13 +116,13 @@ public class ManifestAPI {
     }
 
     /**
-     * 尝试调用函数，方法列表中逐一尝试，调用成功则返回调用结果
+     * 尝试适配调用函数，方法列表中逐一尝试，调用成功则返回调用结果
      * @param invoker 调用方对象
      * @param methods 方法名列表
      * @return 调用结果
      */
     @Nullable
-    private static Object tryInvoke(Object invoker, List<String> methods) {
+    private static Object compatInvoke(Object invoker, List<String> methods) {
         return methods.collect {
             try {
                 invoker."${it}"()
@@ -142,16 +142,20 @@ public class ManifestAPI {
         if (obj == null) {
             return null
         }
-        File dirFile = null
+        File dirFile
         if (obj in File) {
             if (obj.isFile()) {
                 return obj
             }
             dirFile = obj
         } else if (obj in Provider) {
+            //com.android.tools.build:gradle 3.4.1返回目录变更为Provider<Directory>类型
             dirFile = obj.getOrNull().asFile
         } else if (obj in DirectoryProperty) {
+            //com.android.tools.build:gradle 3.6.3返回目录变更为DirectoryProperty类型
             dirFile = obj.asFile.getOrNull()
+        } else {
+            return null
         }
         return new File(dirFile, "AndroidManifest.xml")
     }
